@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c2433">
+<title>Earth 1292</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{--deep:#0c2433;--panel:#12303f;--line:#24495c;--text:#e9f1f4;--mute:#8fadba;--dial:#ffc857;--wave:#3fd0e0;--r:18px}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--deep);color:var(--text);font-family:Outfit,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
+#map{position:fixed;inset:0;z-index:0}
+.top{position:fixed;z-index:500;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:8px;max-width:520px}
+.bar{display:flex;align-items:center;gap:8px;background:var(--deep);border:1px solid var(--line);border-radius:999px;padding:6px 6px 6px 16px;box-shadow:0 6px 24px rgba(0,0,0,.35)}
+.brand{font-weight:800;font-size:15px;letter-spacing:.2px;white-space:nowrap}
+.brand b{color:var(--dial)}
+.bar input{flex:1;min-width:0;background:none;border:0;outline:0;color:var(--text);font:inherit;font-size:16px;padding:8px 4px}
+.bar input::placeholder{color:var(--mute)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible,input:focus-visible,.st:focus-visible{outline:2px solid var(--wave);outline-offset:2px}
+.go{background:var(--dial);color:#2a1f00;font-weight:600;border-radius:999px;padding:9px 16px}
+.chips{display:flex;gap:6px}
+.chip{background:var(--deep);border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-size:14px;color:var(--mute)}
+.chip[aria-pressed=true]{background:var(--wave);border-color:var(--wave);color:#04252b;font-weight:600}
+.fabs{position:fixed;z-index:500;right:10px;display:flex;flex-direction:column;gap:8px;bottom:calc(var(--sheet,230px) + 84px + env(safe-area-inset-bottom,0px))}
+.fab{width:46px;height:46px;border-radius:50%;background:var(--deep);border:1px solid var(--line);box-shadow:0 6px 18px rgba(0,0,0,.35);font-size:20px;display:grid;place-items:center}
+.sheet{position:fixed;z-index:600;left:0;right:0;bottom:0;height:calc(var(--sheet,230px) + 74px + env(safe-area-inset-bottom,0px));background:var(--panel);border-radius:var(--r) var(--r) 0 0;border-top:1px solid var(--line);box-shadow:0 -10px 30px rgba(0,0,0,.4);display:flex;flex-direction:column;transition:height .25s}
+.sheet.min{--sheet:0px}
+.grab{padding:10px 16px 8px;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.grab::before{content:"";position:absolute;top:6px;left:50%;width:40px;height:4px;border-radius:2px;background:var(--line);transform:translateX(-50%)}
+.ttl{font-weight:600;font-size:15px;margin-top:6px}
+.sub{color:var(--mute);font-size:13px;margin-top:6px}
+.list{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:0 10px 6px}
+.sheet.min .list{display:none}
+.st{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:10px;border-radius:12px}
+.st:active,.st.on{background:var(--line)}
+.dot{flex:none;width:38px;height:38px;border-radius:50%;background:var(--deep);display:grid;place-items:center;color:var(--wave)}
+.st.on .dot{background:var(--dial);color:#2a1f00}
+.st .n{font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st .m{color:var(--mute);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st>div:last-child{min-width:0}
+.msg{color:var(--mute);padding:18px 10px;font-size:14px}
+.player{display:flex;align-items:center;gap:12px;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));background:var(--deep);border-top:1px solid var(--line)}
+.play{flex:none;width:48px;height:48px;border-radius:50%;background:var(--dial);color:#2a1f00;font-size:18px;display:grid;place-items:center}
+.now{flex:1;min-width:0}
+.now .n{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.now .m{color:var(--mute);font-size:13px}
+.eq{display:flex;gap:3px;align-items:flex-end;height:20px}
+.eq i{width:4px;height:4px;background:var(--wave);border-radius:2px}
+.playing .eq i{animation:b .8s infinite ease-in-out alternate}
+.playing .eq i:nth-child(2){animation-delay:.2s}.playing .eq i:nth-child(3){animation-delay:.4s}
+@keyframes b{to{height:20px}}
+.leaflet-container{background:#0b1a24;font-family:inherit}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--panel);color:var(--text);border:1px solid var(--line)}
+.leaflet-popup-content{font-size:14px;margin:12px 14px}
+.leaflet-popup-close-button{color:var(--mute)!important}
+.leaflet-container .leaflet-control-attribution{display:block;background:rgba(12,36,51,.75);color:var(--mute);font-size:10px;margin-bottom:calc(var(--sheet,230px) + 76px)}
+.leaflet-control-attribution a{color:var(--wave)}
+.pin{background:var(--dial);border:2px solid #2a1f00;border-radius:50%;width:14px!important;height:14px!important;margin:-7px 0 0 -7px!important;box-shadow:0 0 0 4px rgba(255,200,87,.35)}
+.pin.on{background:var(--wave);box-shadow:0 0 0 6px rgba(63,208,224,.45)}
+.leaflet-control-zoom,.leaflet-control-attribution{display:none}
+[hidden]{display:none!important}
+.warn{position:fixed;z-index:900;left:14px;right:14px;top:50%;transform:translateY(-50%);max-width:420px;margin:auto;background:var(--panel);border:1px solid var(--dial);border-radius:var(--r);padding:18px;box-shadow:0 12px 40px rgba(0,0,0,.6);font-size:15px;line-height:1.45}
+.warn b{display:block;font-size:17px;margin-bottom:6px}
+.warn ol{margin:8px 0 12px 20px}
+.warn button{background:var(--dial);color:#2a1f00;font-weight:600;border-radius:999px;padding:9px 18px}
+.tags{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}.tags::-webkit-scrollbar{display:none}.tags .chip{flex:none}
+.toast{position:fixed;z-index:700;left:50%;top:calc(120px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--deep);border:1px solid var(--line);border-radius:999px;padding:9px 16px;font-size:14px;box-shadow:0 6px 24px rgba(0,0,0,.4);max-width:90vw}
+.star{font-size:24px;padding:6px;color:var(--dial)}
+.poi{background:var(--deep);border:2px solid var(--wave);border-radius:50%;width:32px!important;height:32px!important;margin:-16px 0 0 -16px!important;display:grid;place-items:center;font-size:16px;box-shadow:0 3px 10px rgba(0,0,0,.5)}
+.sug{background:var(--deep);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.35)}
+.sug button{display:block;width:100%;text-align:left;padding:11px 14px;font-size:14px;border-top:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sug button:first-child{border-top:0}
+.rt{display:flex;align-items:center;gap:8px;background:var(--deep);border:1px solid var(--line);border-radius:14px;padding:8px 10px;box-shadow:0 6px 24px rgba(0,0,0,.35)}
+.rt .info{flex:1;font-weight:600;min-width:0}.rt .info small{display:block;color:var(--mute);font-weight:400}
+.rt button{padding:6px 10px;border-radius:10px;border:1px solid var(--line);font-size:16px}
+.rt button[aria-pressed=true]{background:var(--wave);color:#04252b;border-color:var(--wave)}
+.dirbtn{background:var(--dial);color:#2a1f00;font-weight:600;border-radius:999px;padding:8px 14px;margin-top:8px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="map" aria-label="Map"></div>
+
+<div class="top">
+  <form class="bar" id="f" role="search">
+    <span class="brand">Earth <b>1292</b></span>
+    <input id="q" type="search" placeholder="Search a place" enterkeyhint="search" autocomplete="off" aria-label="Search">
+    <button class="go" type="submit">Search</button>
+  </form>
+  <div class="chips">
+    <button class="chip" id="mPlace" aria-pressed="true">Places</button>
+    <button class="chip" id="mRadio" aria-pressed="false">Radio</button>
+  </div>
+  <div class="tags" id="tags"></div>
+  <div class="sug" id="sug"></div>
+  <div class="rt" id="rt" hidden>
+    <div class="info" id="rinfo">Route</div>
+    <button data-p="car" aria-pressed="true" aria-label="Drive">🚗</button>
+    <button data-p="foot" aria-pressed="false" aria-label="Walk">🚶</button>
+    <button data-p="bike" aria-pressed="false" aria-label="Cycle">🚲</button>
+    <button id="rx" aria-label="Clear route">✕</button>
+  </div>
+</div>
+
+<div class="fabs">
+  <button class="fab" id="loc" aria-label="Find my location">📍</button>
+  <button class="fab" id="lay" aria-label="Switch map or satellite">🛰️</button>
+  <button class="fab" id="zi" aria-label="Zoom in">＋</button>
+  <button class="fab" id="zo" aria-label="Zoom out">－</button>
+  <button class="fab" id="here" aria-label="Radio near map center">📻</button>
+</div>
+
+<section class="sheet" id="sheet">
+  <button class="grab" id="grab" aria-label="Expand or collapse station list">
+    <div><div class="ttl" id="ttl">Radio</div><div class="sub" id="sub">Tap the map to hear a country</div></div>
+  </button>
+  <div class="list" id="list"></div>
+  <div class="player" id="pl">
+    <button class="play" id="pp" aria-label="Play or pause">▶</button>
+    <div class="now"><div class="n" id="nn">Pick a station</div><div class="m" id="nm">Nothing playing</div></div>
+    <button class="star" id="star" aria-label="Save to favorites">☆</button>
+    <div class="eq" aria-hidden="true"><i></i><i></i><i></i></div>
+  </div>
+</section>
+
+<div class="toast" id="toast" hidden></div>
+<div class="warn" id="warn" hidden>
+  <b>The map can’t load in this view</b>
+  Previews and downloaded files block map tiles and live data. Open the site from its web address instead:
+  <ol><li>Upload <code>index.html</code> to a GitHub repo</li><li>Settings → Pages → Deploy from branch → main → Save</li><li>Open <code>yourname.github.io/reponame</code> in Chrome or Safari</li></ol>
+  <button id="wx">Got it</button>
+</div>
+<noscript><div class="warn">Earth 1292 needs JavaScript turned on.</div></noscript>
+<audio id="au" preload="none"></audio>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)};
+var esc=function(s){return String(s||"").replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})};
+
+/* ---------- Helpers ---------- */
+function ls(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}}
+function lset(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+var tt;function toast(t){var e=$("toast");e.textContent=t;e.hidden=false;clearTimeout(tt);tt=setTimeout(function(){e.hidden=true},2600)}
+/* ---------- Map ---------- */
+var map=L.map("map",{zoomControl:false,worldCopyJump:true}).setView([20,10],2);
+var sv=ls("e1292view");if(sv)map.setView([sv[0],sv[1]],sv[2]);
+map.on("moveend",function(){var c=map.getCenter();lset("e1292view",[+c.lat.toFixed(4),+c.lng.toFixed(4),map.getZoom()])});
+var OSM="© OpenStreetMap";
+var layers=[
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{subdomains:"abcd",maxZoom:20,attribution:OSM+" · CARTO"}),
+  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Esri"}),
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:OSM})
+];
+var li=0;layers[0].addTo(map);
+$("lay").onclick=function(){
+  map.removeLayer(layers[li]);li=(li+1)%layers.length;layers[li].addTo(map);
+  $("lay").textContent=["🌙","🛰️","🗺️"][li];
+};
+$("lay").textContent="🌙";
+var okT=0;
+layers.forEach(function(l){l.on("tileload",function(){okT++})});
+setTimeout(function(){if(!okT)$("warn").hidden=false},6000);
+$("wx").onclick=function(){$("warn").hidden=true};
+map.attributionControl.setPrefix(false);
+var placePin=null,youPin=null,pins=L.layerGroup().addTo(map);
+
+$("loc").onclick=function(){
+  if(!navigator.geolocation){return}
+  navigator.geolocation.getCurrentPosition(function(p){
+    var ll=[p.coords.latitude,p.coords.longitude];
+    if(youPin)youPin.remove();
+    youPin=L.circleMarker(ll,{radius:8,color:"#fff",weight:3,fillColor:"#2f7bff",fillOpacity:1}).addTo(map);
+    map.flyTo(ll,13);
+  },function(){setMsg("Location is blocked. Allow it in your browser settings.")},{enableHighAccuracy:true,timeout:10000});
+};
+
+/* ---------- Mode: places or radio search ---------- */
+var mode="place";
+function setMode(m){
+  mode=m;
+  $("mPlace").setAttribute("aria-pressed",m==="place");
+  $("mRadio").setAttribute("aria-pressed",m==="radio");
+  $("q").placeholder=m==="place"?"Search a place":"Search radio stations";
+  $("sug").innerHTML="";renderTags();
+}
+$("mPlace").onclick=function(){setMode("place")};
+$("mRadio").onclick=function(){setMode("radio")};
+
+$("f").onsubmit=function(e){
+  e.preventDefault();
+  var v=$("q").value.trim();if(!v)return;
+  $("q").blur();$("sug").innerHTML="";
+  if(mode==="radio"){loadStations("name="+encodeURIComponent(v),"Results for \u201c"+v+"\u201d","Radio search")}
+  else{geocode(v,1,function(d){if(!d.length){setMsg("No place found for \u201c"+esc(v)+"\u201d. Try a different spelling.");return}showPlace(d[0])})}
+};
+function geocode(v,n,cb){
+  fetch("https://nominatim.openstreetmap.org/search?format=json&limit="+n+"&q="+encodeURIComponent(v))
+   .then(function(r){return r.json()}).then(cb).catch(function(){setMsg("Search failed. Check your connection.")});
+}
+/* suggestions while typing */
+var tm;
+$("q").addEventListener("input",function(){
+  clearTimeout(tm);var v=this.value.trim();
+  if(mode!=="place"||v.length<3){$("sug").innerHTML="";return}
+  tm=setTimeout(function(){geocode(v,5,function(d){
+    var h=$("sug");h.innerHTML="";
+    d.forEach(function(p){var b=document.createElement("button");b.type="button";b.textContent=p.display_name;b.onclick=function(){h.innerHTML="";$("q").value=p.display_name.split(",")[0];showPlace(p)};h.appendChild(b)});
+  })},350);
+});
+function showPlace(p){
+  var ll=[+p.lat,+p.lon];dest=ll;
+  if(placePin)placePin.remove();
+  var box=document.createElement("div");
+  box.innerHTML="<b>"+esc(p.display_name.split(",")[0])+"</b><div style='color:var(--mute);font-size:13px;margin-top:2px'>"+esc(p.display_name.split(",").slice(1,4).join(","))+"</div>";
+  var d=document.createElement("button");d.className="dirbtn";d.textContent="Directions";d.onclick=function(){startRoute(ll)};
+  box.appendChild(d);
+  placePin=L.marker(ll).addTo(map).bindPopup(box).openPopup();
+  if(p.boundingbox){map.flyToBounds([[+p.boundingbox[0],+p.boundingbox[2]],[+p.boundingbox[1],+p.boundingbox[3]]],{maxZoom:15})}else{map.flyTo(ll,Math.max(map.getZoom(),14))}
+}
+
+/* ---------- Directions ---------- */
+var dest=null,origin=null,routeLine=null,prof="car";
+var RT={car:"https://routing.openstreetmap.de/routed-car",foot:"https://routing.openstreetmap.de/routed-foot",bike:"https://routing.openstreetmap.de/routed-bike"};
+function startRoute(to){
+  dest=to;$("rt").hidden=false;$("rinfo").textContent="Finding your location\u2026";
+  if(youPin){origin=youPin.getLatLng();drawRoute();return}
+  if(!navigator.geolocation){noLoc();return}
+  navigator.geolocation.getCurrentPosition(function(p){
+    origin=L.latLng(p.coords.latitude,p.coords.longitude);
+    youPin=L.circleMarker(origin,{radius:8,color:"#fff",weight:3,fillColor:"#2f7bff",fillOpacity:1}).addTo(map);
+    drawRoute();
+  },noLoc,{enableHighAccuracy:true,timeout:10000});
+}
+function noLoc(){$("rinfo").innerHTML="Location is off<small>Allow it in browser settings to get directions</small>"}
+function drawRoute(){
+  $("rinfo").textContent="Finding route\u2026";
+  fetch(RT[prof]+"/route/v1/driving/"+origin.lng+","+origin.lat+";"+dest[1]+","+dest[0]+"?overview=full&geometries=geojson")
+   .then(function(r){return r.json()}).then(function(d){
+    if(!d.routes||!d.routes.length){$("rinfo").textContent="No route found";return}
+    var r=d.routes[0];
+    if(routeLine)routeLine.remove();
+    routeLine=L.geoJSON(r.geometry,{style:{color:"#3fd0e0",weight:6,opacity:.95}}).addTo(map);
+    map.flyToBounds(routeLine.getBounds(),{padding:[60,60]});
+    var m=Math.round(r.duration/60),t=m>=60?Math.floor(m/60)+" h "+(m%60)+" min":m+" min";
+    $("rinfo").innerHTML=t+"<small>"+(r.distance/1000).toFixed(1)+" km</small>";
+  }).catch(function(){$("rinfo").textContent="Route service is busy. Try again."});
+}
+[].forEach.call(document.querySelectorAll(".rt [data-p]"),function(b){
+  b.onclick=function(){
+    prof=b.getAttribute("data-p");
+    [].forEach.call(document.querySelectorAll(".rt [data-p]"),function(x){x.setAttribute("aria-pressed",x===b)});
+    if(origin&&dest)drawRoute();
+  };
+});
+$("rx").onclick=function(){$("rt").hidden=true;if(routeLine){routeLine.remove();routeLine=null}};
+
+/* ---------- Radio ---------- */
+var SERVERS=["https://de1.api.radio-browser.info","https://at1.api.radio-browser.info","https://nl1.api.radio-browser.info"];
+var stations=[],cur=null,au=$("au");
+
+function api(path,i){
+  i=i||0;
+  return fetch(SERVERS[i]+path).then(function(r){if(!r.ok)throw 0;return r.json()}).catch(function(){
+    if(i+1<SERVERS.length)return api(path,i+1);throw 1;
+  });
+}
+function setMsg(t){$("list").innerHTML='<div class="msg">'+t+'</div>'}
+function expand(){$("sheet").classList.remove("min");$("sheet").parentNode.style.setProperty("--sheet","230px")}
+$("grab").onclick=function(){$("sheet").classList.toggle("min");syncFabs()};
+function syncFabs(){var m=$("sheet").classList.contains("min");document.documentElement.style.setProperty("--sheet",m?"0px":"230px")}
+syncFabs();
+
+function loadStations(query,title,sub){
+  $("sheet").classList.remove("min");syncFabs();
+  $("ttl").textContent=title;$("sub").textContent=sub||"";
+  setMsg("Tuning in…");
+  api("/json/stations/search?hidebroken=true&order=votes&reverse=true&limit=80&"+query)
+   .then(function(d){
+    stations=d.filter(function(s){return /^https:/.test(s.url_resolved||"")});
+    render();
+  }).catch(function(){setMsg("Can’t reach the radio directory. Try again in a moment.")});
+}
+
+function render(){
+  pins.clearLayers();
+  var l=$("list");l.innerHTML="";
+  if(!stations.length){setMsg("No playable stations here. Tap another spot on the map.");return}
+  $("sub").textContent=stations.length+" stations";
+  stations.forEach(function(s,i){
+    var b=document.createElement("button");
+    b.className="st"+(cur&&cur.stationuuid===s.stationuuid?" on":"");
+    b.innerHTML='<div class="dot">📻</div><div><div class="n">'+esc(s.name.trim())+'</div><div class="m">'+esc([s.country,(s.tags||"").split(",").slice(0,2).join(", ")].filter(Boolean).join(" · "))+'</div></div>';
+    b.onclick=function(){play(s,true)};
+    l.appendChild(b);
+    if(s.geo_lat&&s.geo_long){
+      var m=L.marker([s.geo_lat,s.geo_long],{icon:L.divIcon({className:"pin"+(cur&&cur.stationuuid===s.stationuuid?" on":""),iconSize:[14,14]}),title:s.name}).addTo(pins);
+      m.on("click",function(){play(s,false)});
+      s._m=m;
+    }
+  });
+}
+
+function play(s,fly){
+  cur=s;lset("e1292last",s);updStar();
+  $("nn").textContent=s.name.trim();
+  $("nm").textContent="Connecting…";
+  au.src=s.url_resolved;
+  au.play().catch(function(){$("nm").textContent="Tap play to start"});
+  [].forEach.call(document.querySelectorAll(".st"),function(el,i){el.classList.toggle("on",stations[i]===s)});
+  if(fly&&s.geo_lat&&s.geo_long){map.flyTo([s.geo_lat,s.geo_long],Math.max(map.getZoom(),6))}
+  if("mediaSession" in navigator){navigator.mediaSession.metadata=new MediaMetadata({title:s.name.trim(),artist:"Earth 1292"})}
+  fetch(SERVERS[0]+"/json/url/"+s.stationuuid).catch(function(){});
+}
+au.onplaying=function(){$("pl").classList.add("playing");$("pp").textContent="⏸";$("nm").textContent=(cur.country||"Live")+" · Live"};
+au.onpause=function(){$("pl").classList.remove("playing");$("pp").textContent="▶"};
+au.onerror=function(){$("pl").classList.remove("playing");$("pp").textContent="▶";$("nm").textContent="This station is offline. Pick another."};
+$("pp").onclick=function(){if(!cur)return;au.paused?au.play():au.pause()};
+
+/* tap map → that country's top stations */
+var busy=0;
+map.on("click",function(e){
+  if(map.getZoom()>9)return;
+  var id=++busy;
+  $("ttl").textContent="Radio";$("sub").textContent="Looking up this spot…";
+  fetch("https://nominatim.openstreetmap.org/reverse?format=json&zoom=3&lat="+e.latlng.lat+"&lon="+e.latlng.lng)
+   .then(function(r){return r.json()}).then(function(d){
+    if(id!==busy)return;
+    if(!d.address||!d.address.country_code){setMsg("That’s open water. Tap on land to hear a country.");$("sub").textContent="";return}
+    loadStations("countrycode="+d.address.country_code.toUpperCase(),d.address.country,"Top stations");
+  }).catch(function(){setMsg("Couldn’t look up that spot.")});
+});
+
+/* radio near map center (stations that have coordinates) */
+$("here").onclick=function(){
+  var c=map.getCenter();
+  loadStations("has_geo_info=true&geo_lat="+c.lat.toFixed(3)+"&geo_long="+c.lng.toFixed(3)+"&geo_distance=300000","Near map center","Within 300 km");
+};
+
+/* favorites */
+function favs(){return ls("e1292fav")||[]}
+function isFav(s){return s&&favs().some(function(f){return f.stationuuid===s.stationuuid})}
+function updStar(){$("star").textContent=isFav(cur)?"★":"☆"}
+$("star").onclick=function(){
+  if(!cur)return;
+  var f=favs();
+  if(isFav(cur)){f=f.filter(function(x){return x.stationuuid!==cur.stationuuid});toast("Removed from favorites")}
+  else{f.push({stationuuid:cur.stationuuid,name:cur.name,url_resolved:cur.url_resolved,country:cur.country,tags:cur.tags,geo_lat:cur.geo_lat,geo_long:cur.geo_long});toast("Saved to favorites")}
+  lset("e1292fav",f);updStar();
+};
+function showFavs(){
+  stations=favs();$("sheet").classList.remove("min");syncFabs();
+  $("ttl").textContent="Favorites";$("sub").textContent=stations.length+" saved";
+  if(stations.length)render();else{pins.clearLayers();setMsg("Nothing saved yet. Play a station and tap the star.")}
+}
+
+/* nearby places (Overpass) */
+var poi=L.layerGroup().addTo(map);
+var PT=[["Food","🍔",'amenity~"restaurant|fast_food"'],["Cafés","☕",'amenity=cafe'],["Fuel","⛽",'amenity=fuel'],["Hotels","🏨",'tourism=hotel'],["ATM","🏧",'amenity=atm'],["Pharmacy","💊",'amenity=pharmacy'],["Hospital","🏥",'amenity=hospital'],["Parking","🅿️",'amenity=parking']];
+var RTG=[["⭐ Favorites",""],["Pop","pop"],["Rock","rock"],["Hip hop","hiphop"],["Electronic","electronic"],["Jazz","jazz"],["Classical","classical"],["News","news"],["Chill","chillout"]];
+function renderTags(){
+  var t=$("tags");t.innerHTML="";
+  (mode==="place"?PT:RTG).forEach(function(x){
+    var b=document.createElement("button");b.type="button";b.className="chip";
+    b.textContent=mode==="place"?x[1]+" "+x[0]:x[0];
+    b.onclick=function(){
+      if(mode==="place")nearby(x);
+      else if(!x[1])showFavs();
+      else loadStations("tag="+x[1],x[0],"Worldwide");
+    };
+    t.appendChild(b);
+  });
+}
+function nearby(k){
+  if(map.getZoom()<13){toast("Zooming in\u2026");map.flyTo(map.getCenter(),14);map.once("moveend",function(){nearby(k)});return}
+  var b=map.getBounds();
+  toast("Searching "+k[0].toLowerCase()+"\u2026");
+  var q='[out:json][timeout:15];nwr['+k[2]+']('+b.getSouth()+','+b.getWest()+','+b.getNorth()+','+b.getEast()+');out center 60;';
+  fetch("https://overpass-api.de/api/interpreter?data="+encodeURIComponent(q)).then(function(r){return r.json()}).then(function(d){
+    poi.clearLayers();
+    var n=0;
+    (d.elements||[]).forEach(function(e){
+      var la=e.lat||(e.center&&e.center.lat),lo=e.lon||(e.center&&e.center.lon);if(!la)return;n++;
+      var nm=(e.tags&&e.tags.name)||k[0];
+      var box=document.createElement("div");box.innerHTML="<b>"+esc(nm)+"</b>";
+      var d2=document.createElement("button");d2.className="dirbtn";d2.textContent="Directions";d2.onclick=function(){startRoute([la,lo])};
+      box.appendChild(d2);
+      L.marker([la,lo],{icon:L.divIcon({className:"poi",html:k[1],iconSize:[32,32]})}).addTo(poi).bindPopup(box);
+    });
+    toast(n?n+" "+k[0].toLowerCase()+" found":"Nothing found here. Pan the map and try again.");
+  }).catch(function(){toast("Places service is busy. Try again.")});
+}
+
+/* long-press to drop a pin */
+map.on("contextmenu",function(e){
+  var la=e.latlng.lat,lo=e.latlng.lng;
+  fetch("https://nominatim.openstreetmap.org/reverse?format=json&zoom=18&lat="+la+"&lon="+lo).then(function(r){return r.json()}).then(function(d){
+    showPlace({lat:la,lon:lo,display_name:d.display_name||"Dropped pin"});
+  }).catch(function(){showPlace({lat:la,lon:lo,display_name:"Dropped pin"})});
+});
+$("zi").onclick=function(){map.zoomIn()};
+$("zo").onclick=function(){map.zoomOut()};
+renderTags();
+
+/* start: world top stations */
+loadStations("order=clickcount","World radio","Most listened now");
+var last=ls("e1292last");if(last&&last.url_resolved){cur=last;$("nn").textContent=last.name.trim();$("nm").textContent="Tap play to resume";au.src=last.url_resolved;updStar()}
+})();
+</script>
+</body>
+</html>
